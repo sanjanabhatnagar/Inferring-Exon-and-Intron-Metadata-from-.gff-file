@@ -1,6 +1,7 @@
-# Understanding RNA grammar
-Functional grouping of non-coding regions in high-dimensional RNA-binding protein motif space
+# Understanding RNA grammar : Functional grouping of non-coding regions in high-dimensional RNA-binding protein motif space
 
+## Processing gff - Inferring intron coordinates and categorizing exons these introns flank
+### GTF_ExInt_Annotator.py Usage :-
 1. DOWNLOADING GTF/GFF file -
 The GFF fle can be downloaded from RefSeq or other specific databases.
 These usually contain the coordinates of a gene and all other entities within it such as exons, UTRs, CDS etc.
