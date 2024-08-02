@@ -14,7 +14,7 @@ intron_cords_file = sys.argv[4]  # This is just the coordinates of introns ready
 # line 399 : median = round_to_nearest_multiple_of_10(median_size)
 # To keep it simple, I have used the variable name median and it depends on user to use the actual median size or
 #  specify a length they'd like the introns to be resized to.
-median = sys.argv[5]
+median = float(sys.argv[5])
 # CAN BE CONVERTED TO BED FILE EASILY WITH EXCEL AND R - GTF-to-bed.r ###
 
 keywords = []
