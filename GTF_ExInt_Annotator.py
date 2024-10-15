@@ -6,15 +6,16 @@ gtf_file = sys.argv[1]  # This is the input gtf
 keywords_file = sys.argv[2]  # This is the column labels we want the gtf metadata - "info" column to be parsed into.
 # Reason - Every gtf's info column consists different identifier (types/categories of information) and we need the
 # identifiers to become columns in final files.
-intron_annot_file = sys.argv[3]  # This is the gtf with all exons and introns annotated and metadata
-intron_cords_file = sys.argv[4]  # This is just the coordinates of introns ready to be converted to bed format
+intron_annot_file = sys.argv[3]  # This is the gtf with introns annotated and metadata
+exon_intron_annot_file = sys.argv[4] # This is the gtf with all exons and introns annotated and metadata
+intron_cords_file = sys.argv[5]  # This is just the coordinates of introns ready to be converted to bed format
 
 # Depending on the length you want your sequences to be resized to, you can either choose to enter a length here
 # alternatively if you want to use the median length for resizing you can comment this out and use the code below on
 # line 399 : median = round_to_nearest_multiple_of_10(median_size)
 # To keep it simple, I have used the variable name median and it depends on user to use the actual median size or
 #  specify a length they'd like the introns to be resized to.
-median = float(sys.argv[5])
+median = float(sys.argv[6])
 # CAN BE CONVERTED TO BED FILE EASILY WITH EXCEL AND R - GTF-to-bed.r ###
 
 keywords = []
@@ -318,7 +319,7 @@ skipex_neg = fdf_1[(fdf_1['splicing_event_y'].str.contains('Skipped_Exon')) & (f
 
 # 2.1 Now getting all the start and end coordinates for skipped exons.
 # The following line gives the number of transcripts containing an exon with certain start and end coordinates.
-skipex_neg_df = skipex.groupby(['gene_id', 'end', 'start'])['transcript_id'].nunique().reset_index()
+skipex_neg_df = skipex_neg.groupby(['gene_id', 'end', 'start'])['transcript_id'].nunique().reset_index()
 
 UI_SE_neg = fdf_1[(fdf_1['group'] == 'intron') & fdf_1['start'].isin(skipex_neg_df['end'] + 1)].index
 DI_SE_neg = fdf_1[(fdf_1['group'] == 'intron') & fdf_1['end'].isin(skipex_neg_df['start'] - 1)].index
@@ -445,6 +446,7 @@ big_introns = pd.concat([intron_beginningmedian, intron_endingmedian], ignore_in
 all_intron_coordinates = pd.concat([small_intron_coordinates, big_introns], ignore_index=True)
 all_intron_coordinates.drop_duplicates(inplace=True)
 all_intron_coordinates.to_csv(intron_cords_file, sep='\t')
+all_annot_df.to_csv(exon_intron_annot_file, sep='\t')
 
 # The end - this will give an annotated intron coordinates file which can be further analyzed in excel.###
 
