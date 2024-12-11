@@ -1,4 +1,4 @@
-# Understanding RNA grammar : Functional grouping of non-coding regions in high-dimensional RNA-binding protein motif space
+# Understanding RNA grammar : Annotating non-coding regions (introns) in genome annotation files
 
 ## GTF_ExInt_Annotator.py for Processing gff -
 
