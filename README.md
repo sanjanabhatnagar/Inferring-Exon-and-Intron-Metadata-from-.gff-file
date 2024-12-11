@@ -15,7 +15,7 @@ agat_sp_add_introns.pl --gff [_.gff] -o [_introns.gff]
 3. CLASSIFYING INTRONS -
 The script GTF_ExInt_Annotator.py specifically annotates all the inferred introns based on the exons they flank. The usage is -
 
-python GTF_ExInt_Annotator.py [_introns.gff] [keywords.txt] [metadata_containing_annotated.tsv] [intron_coordinates.tsv] [size]
+python GTF_ExInt_Annotator.py [_introns.gff] [keywords.txt] [metadata_Introns_annotated.tsv] [metadata_Introns_Exons_annotated.tsv][intron_coordinates.tsv] [absolute/relative] [size]
 
 [_introns.gff] - This is the file generated previously using AGAT software which adds the introns to the existing gff.
 [keywords.txt] - This depends on the metadata column of a gff. Every gff is different in terms of the information it contains in the 'info' column.
@@ -37,9 +37,7 @@ The script uses 'gene_id', start and end coordinates and transcript_ids for clas
 In order to maintain a uniformity in sizes of the introns being generated i.e. if they are to be subjected to downstream
 analysis, this script calculates the median intron size and rounds this up to a closest multiple of 10 and takes all the
 introns smaller than this and the introns bigger than the median size are broken down into two parts. However, if the user
-Wants to specify a certain length they can comment out line 399 : median = round_to_nearest_multiple_of_10(median_size) in the script.
-And specify the length with the python command
-python GTF_ExInt_Annotator.py [_introns.gff] [keywords.txt] [metadata_containing_annotated.tsv] [intron_coordinates.tsv] [size]
+Wants to specify a certain length they can enter the size in the end as indicated in the command above.
 
 The starting region of Introns until a new end coordinate which is median-rounded-to-closest-multiple-of-10 (or user-specified length) bp apart.
 The ending region of Introns but a new start coordinate which is median-rounded-to-closest-multiple-of-10 (or user-specified length) bp upstream of
@@ -47,10 +45,12 @@ end coordinate.
 For example if median intron size is 96, introns bigger than this will be cropped to 100 in way that starting 100 bp of
 this intron and ending 100 bp of this intron will be taken.
 
+[absolute/relative] - This is the type of coordinates for the output intron coordinates file. In all cases, the output will be 'absolute.' The 'relative' option is used only when the output file requires gene coordinates scaled from 0 to the full length of the gene.
+
 3.1. RESULTING FILES -
 
-metadata_containing_annotated.tsv -> This file only contains introns and related metadata
-gff_parsed_meta.tsv -> This file contains exons and introns and related metadata
+metadata_Introns_annotated.tsv -> This file only contains introns and related metadata
+metadata_Introns_Exons_annotated.tsv -> This file contains both introns and exons related metadata, if interested in looking at coding region annotations.
 intron_coordinate.tsv -> This file contains correct inferred coordinates of introns belonging to different categories. 
 This file can be further converted to bed file using 
 GTF-to-bed.R 
