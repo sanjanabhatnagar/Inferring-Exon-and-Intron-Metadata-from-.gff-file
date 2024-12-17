@@ -19,12 +19,11 @@ median = int(sys.argv[7])
 # CAN BE CONVERTED TO BED FILE EASILY WITH EXCEL AND R - GTF-to-bed.r ###
 
 def exon_cat(group):
-    if 'exon_id' in group.columns:
-        group.sort_values(by=['exon_id'],inplace=True)
-    else:
-        group.sort_values(by=['ID'],inplace=True)
+    group.sort_values(by=['exon_id'],inplace=True)
+    group['transcript_id'] = group['transcript_id'].astype(str).str.replace('transcript_id=','')
     smallest_exon_start_tr = group.groupby(['transcript_id'])[['start','end']].min().reset_index()
     greatest_exon_end_tr = group.groupby(['transcript_id'])[['start','end']].max().reset_index()
+    
     group['splicing_event'] = np.nan
     smallest_exon_rows = group[group[['transcript_id','start', 'end']].apply(tuple, axis=1).isin(smallest_exon_start_tr[['transcript_id','start', 'end']].apply(tuple, axis=1))]
     greatest_exon_rows = group[group[['transcript_id','start', 'end']].apply(tuple, axis=1).isin(greatest_exon_end_tr[['transcript_id','start', 'end']].apply(tuple, axis=1))]
@@ -46,9 +45,74 @@ def exon_cat(group):
 
     excluded_tuples = group[['start', 'end', 'transcript_id']].apply(tuple, axis=1).isin(excluded_set)
     filtered_group = group[~(excluded_tuples)]
-    exon_counts = filtered_group.groupby(['start', 'end'])['transcript_id'].count().reset_index(name='transcript_id_count')
-    tr_num = filtered_group['transcript_id'].nunique()
- 
+
+    #Processing skipped and constitutive separately.
+    first_exon_rows = group[group['splicing_event'] == 'first_exon']
+    first_exon_tuples = first_exon_rows[['start','end','transcript_id']].apply(tuple, axis=1)
+    # Grouping transcripts by first exons.
+    tr_subgroup_df = first_exon_rows.groupby(['start','end'])['transcript_id'].apply(list).reset_index()
+    tr_subgroup = tr_subgroup_df['transcript_id'].to_dict()
+
+    skipped_dic = {}
+    constitutive_dic = {}
+    # group transcripts into sub-groups based on first exon and then locate the exon under question in the transcripts that have first exons coordinates smaller than exon in quesstion !
+    # I am creating transcript subgroups with all exons except the first ones. Hence, I use filtered_group for subgroup.
+    for key in tr_subgroup:
+        subgroup = group[group['transcript_id'].isin(tr_subgroup[key])]
+        tr_num = subgroup['transcript_id'].nunique()
+        subgroup_filter =subgroup[~(subgroup['splicing_event']=='first_exon') & ~(subgroup['splicing_event']=='last_exon')]
+        ex_counts = subgroup_filter.groupby(['start', 'end'])['transcript_id'].count().reset_index(name='transcript_id_count')
+        skipped_condition = ex_counts[ex_counts['transcript_id_count'] < tr_num]
+        skipped = list(skipped_condition[['start', 'end']].itertuples(index=False, name=None))
+        skipped_dic[key] = skipped
+        constitutive_condition = ex_counts[ex_counts['transcript_id_count'] == tr_num]
+        constitutive = list((constitutive_condition[['start', 'end']].itertuples(index=False, name=None)))
+        constitutive_dic[key]=constitutive
+        
+    # Next approach will be parsing out the true constitutive and skipped based on first exon coordinates.
+    constitutive_true_dic={}
+    constitutive_tuples_pre = set(tuple_ for tuples_list in constitutive_dic.values() for tuple_ in tuples_list)
+    
+    for coords in constitutive_tuples_pre:
+        start, end = coords
+        if '+' in first_exon_rows['strand'].unique():
+            # With this line of code I am checking if the exon in question is an internal exon in any of the transcripts. 
+            # Only when I locate transcript block by its first exon and then if the exon in question is internal to it ( start > tup[1] (or first_exon end)) then, I extract the transcript_ids
+            subset_condition = group.loc[
+                group.apply(
+                    lambda row: any(start > tup[1]
+                        for tup in first_exon_tuples
+                        if ((row['end'] == tup[1]) & (row['splicing_event'] == 'first_exon'))
+                    ),axis=1)]
+            trs = subset_condition['transcript_id'].unique()
+            subset_trs = filtered_group[filtered_group['transcript_id'].isin(trs)]
+        
+        elif '-' in first_exon_rows['strand'].unique():
+            subset_condition = group.loc[
+                group.apply(
+                    lambda row: any(start < tup[1]
+                        for tup in first_exon_tuples
+                        if ((row['end'] == tup[1]) & (row['splicing_event'] == 'first_exon'))
+                    ),axis=1)]
+            trs = subset_condition['transcript_id'].unique()
+            subset_trs = filtered_group[filtered_group['transcript_id'].isin(trs)]
+
+        second_ex_counts = subset_trs.groupby(['start', 'end'])['transcript_id'].count().reset_index(name='transcript_id_count')
+        tr_num_subset = subset_trs['transcript_id'].nunique()
+        
+        skipped_sec_condition = second_ex_counts[second_ex_counts['transcript_id_count'] < tr_num_subset][['start','end']]
+        if start in list(skipped_sec_condition['start']):
+            skipped_dic[start]=[]
+            skipped_dic[start].append(coords)
+
+        const_real = second_ex_counts[second_ex_counts['transcript_id_count'] == tr_num_subset][['start','end']]
+        if start in list(const_real['start']):
+            constitutive_true_dic[start]=[]
+            constitutive_true_dic[start].append(coords)
+      
+    skipped_tuples = set(tuple_ for tuples_list in skipped_dic.values() for tuple_ in tuples_list)
+    constitutive_tuples = set(tuple_ for tuples_list in constitutive_true_dic.values() for tuple_ in tuples_list)
+
     #I am accounting for first and last exons here, they need to be excluded when I am trying to classify exons of other transcripts in which the first exon of trs1 might be a second or third exon.
     ex_1start_more_ends = filtered_group.groupby(['start']).filter(lambda g: g['end'].nunique() > 1)
     ex_1start_more_ends_count = ex_1start_more_ends.groupby(['start'])['transcript_id'].transform('count')
@@ -57,15 +121,6 @@ def exon_cat(group):
     ex_1end_more_starts = filtered_group.groupby(['end']).filter(lambda g: g['start'].nunique() > 1)
     ex_1end_more_starts_count = ex_1end_more_starts.groupby(['end'])['transcript_id'].transform('count')
     composite_condition2 = ex_1end_more_starts[(ex_1end_more_starts_count < tr_num)]
-
-
-    skipped_condition = exon_counts[exon_counts['transcript_id_count'] < tr_num]
-    skipped_tuples = set(skipped_condition[['start', 'end']].itertuples(index=False, name=None))
-   
-
-    constitutive_condition = exon_counts[exon_counts['transcript_id_count'] == tr_num]
-    constitutive_tuples = set(constitutive_condition[['start', 'end']].itertuples(index=False, name=None))
-    
 
     if '+' in group['strand'].unique():
 
@@ -91,9 +146,17 @@ def exon_cat(group):
         'splicing_event'] = 'skipped_exon(-)'
         group.loc[group.apply(lambda row: (row['start'], row['end']) in constitutive_tuples, axis=1),
         'splicing_event'] = 'constitutive(-)'
+        
+    # This snippet is repeated so that some exons, which get labelled wrongly as any other events, even though they show those characteristics, to keep it simple, this will override and will always label such exons as first exons over any other thing.
+    if '+' in group['strand'].unique():
+        group.loc[smallest_exon_rows.index, 'splicing_event'] = 'first_exon'
+        group.loc[greatest_exon_rows.index, 'splicing_event'] = 'last_exon'
+
+    elif '-' in group['strand'].unique():
+        group.loc[smallest_exon_rows.index, 'splicing_event'] = 'last_exon'
+        group.loc[greatest_exon_rows.index, 'splicing_event'] = 'first_exon'
 
     return group
-
 
 def intron_filter(group):
     exon_condition = group[
