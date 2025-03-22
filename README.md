@@ -1,4 +1,4 @@
-# Inferring exon and intron annotations from genome feature file (GFF)
+# Inferring exon and intron annotations from genome feature file (.gff)
 
 ## GTF_ExInt_Annotator.py for Processing gff -
 
