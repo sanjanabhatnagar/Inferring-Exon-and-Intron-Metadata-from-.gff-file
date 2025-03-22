@@ -8,7 +8,7 @@ These usually contain the coordinates of a gene and all other entities within it
 These files usually lack introns hence, intron coordinates need to be inferred from the exon coordinates.
 
 2. USING AGAT software TO INFER INTRON COORDINATES-
-It's pretty easy to install and can be found here -  https://github.com/NBISweden/AGAT
+It can be found here -  https://github.com/NBISweden/AGAT
 This can be further added to the path variable and following script can be run
 agat_sp_add_introns.pl --gff [_.gff] -o [_introns.gff]
 
