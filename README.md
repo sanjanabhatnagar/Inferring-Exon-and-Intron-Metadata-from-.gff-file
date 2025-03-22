@@ -1,4 +1,4 @@
-# Inferring intron annotations from genome annotation files based on the exons they flank
+# Inferring exon and intron annotations from genome feature file (GFF)
 
 ## GTF_ExInt_Annotator.py for Processing gff -
 
