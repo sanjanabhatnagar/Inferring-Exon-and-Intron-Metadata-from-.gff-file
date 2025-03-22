@@ -1,18 +1,33 @@
 # Inferring exon and intron annotations from genome feature file (.gff)
 
+This pipeline infers exon and intron metadata solely from coordinate information from .gff. It classifies exons into following splicing categories: 
+1. Constitutively spliced exons (always included in mRNA)
+2. Alternatively spliced exons such as skipped exons (exons that are either included or excluded from the mRNA)
+3. Alternative 5’ splice site (5’ss) exons (exons with two donor sites, where one is selected)
+4. Alternative 3’ splice site (3’ss) exons (exons with two acceptor sites, where one is selected)
+5. Retained introns (introns incorporated into mRNA)
+6. Composite exons (exons exhibiting more than one type of alternative splicing, e.g., alternative 5’ss exons that are also skipped).
+
+Additionally, it annotates first and last exons per transcript in gene model. 
+
+The .gff file does not include information on introns. First, the inter-exonic region coordinates are inferred from the .gff file using AGAT software (Dainat, 2022). The output file contained actual intron coordinates as well as coordinates that span alternatively spliced exons present in other transcripts within the same gene model. Hence, gff_exon-intron_annotations.py also filters actual introns and further adds intron metadata by leveraging the annotation of the exons they flank.
+
+Using certain options we can extract intron fragments of specified size or the median intron size,if needed. In the end crdnts_to_bed.R can be used to convert the coordinates of regions of interest to bed file format.
+
+
 ## gff_exon-intron_annotations.py for processing .gff -
 
-### 1. DOWNLOADING .gff file -
+### 1. Downloading .gff file -
 The .gff fle can be downloaded from RefSeq or other specific databases.
 These usually contain the coordinates of a gene and all other entities within it such as exons, UTRs, CDS etc.
 These files usually lack introns hence, intron coordinates need to be inferred from the exon coordinates.
 
-### 2. USING AGAT software TO INFER INTRON COORDINATES-
+### 2. Using AGAT to infer inter-exonic region coordinates from exon-coordinates in .gff - 
 It can be downloaded and installed from this source -  https://github.com/NBISweden/AGAT
 This can be further added to the path variable and following script can be run
 agat_sp_add_introns.pl --gff [_.gff] -o [_updated.gff]
 
-### 3. CLASSIFYING INTRONS -
+### 3. Annotating exons and introns - 
 The script gff_exon-intron_annotations.py specifically annotates all the exons and further infers intron coordinates and annotations based on the exons they flank. The usage is -
 
 python gff_exon-intron_annotations.py [_updated.gff] [keywords.txt] [metadata_Introns_annotated.tsv] [metadata_Introns_Exons_annotated.tsv][intron_coordinates.tsv] [absolute/relative] [size]
