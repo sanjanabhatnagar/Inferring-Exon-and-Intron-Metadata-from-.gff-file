@@ -3,23 +3,45 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-gtf_file = sys.argv[1]
+gff_file = sys.argv[1]
 keywords_file = sys.argv[2]
 intron_annot_file = sys.argv[3]
 exon_intron_annot_file = sys.argv[4]
 intron_cords_file = sys.argv[5]
 coordinate_type = sys.argv[6] # relative coordinates or absolute coordinates.
 median = int(sys.argv[7])
+
 # Depending on the length you want your sequences to be resized to, you can either choose to enter a length here
 # alternatively if you want to use the median length for resizing you can comment this out and use the code below on
-# line 399 : median = round_to_nearest_multiple_of_10(median_size)
+# median = round_to_nearest_multiple_of_10(median_size)
 # To keep it simple, I have used the variable name median and it depends on user to use the actual median size or
-#  specify a length they'd like the introns to be resized to.
-#median = float(sys.argv[6])
-# CAN BE CONVERTED TO BED FILE EASILY WITH EXCEL AND R - GTF-to-bed.r ###
+# specify a length they'd like the introns to be resized to.
 
-def exon_cat(group):
-    group.sort_values(by=['exon_id'],inplace=True)
+# CAN BE CONVERTED TO BED FILE EASILY WITH EXCEL AND R - crdnts_to_bed.r ###
+
+
+#Simple logic here is if the exon spans an intron, it likely is a retained intron event whereas if an intron spans an exon, that's not an actual intron and gets filtered out by intron_filter().
+def retained_introns(model):
+    model['splicing_event'] = np.nan
+    exons = model[model['group'] == 'exon']
+    introns = model[model['group'] == 'intron']
+    exoncoords = set(map(tuple, exons[['start', 'end']].values))
+
+    for index, row in introns.iterrows():
+        for exon_start, exon_end in exoncoords:
+            if exon_start < row['start'] and exon_end > row['end']:
+                model.loc[index, 'splicing_event'] = 'retained intron'
+                exon_to_delete = exons[(exons['start'] == exon_start) & (exons['end'] == exon_end)]
+                model.loc[exon_to_delete.index, 'splicing_event'] = 'drop'
+                    
+    # I am dropping those exons which aren't real exons but two exons flanking a retained intron.
+    model = model[model['splicing_event'] != 'drop']
+    return model
+
+
+def exon_cat(gene_model):
+    group=gene_model[gene_model['group']=='exon']
+    group.sort_values(by=['transcript_id'],inplace=True)
     group['transcript_id'] = group['transcript_id'].astype(str).str.replace('transcript_id=','')
     smallest_exon_start_tr = group.groupby(['transcript_id'])[['start','end']].min().reset_index()
     greatest_exon_end_tr = group.groupby(['transcript_id'])[['start','end']].max().reset_index()
@@ -45,10 +67,20 @@ def exon_cat(group):
 
     excluded_tuples = group[['start', 'end', 'transcript_id']].apply(tuple, axis=1).isin(excluded_set)
     filtered_group = group[~(excluded_tuples)]
+    constitutive_alltrs_dic={}
+    tr_numfilter = filtered_group['transcript_id'].nunique()
+    alltrexons = filtered_group.groupby(['start','end'])['transcript_id'].count().reset_index(name='transcript_id_count')
+    Const_overall_trs_condition = alltrexons[alltrexons['transcript_id_count'] == tr_numfilter]
+    if not Const_overall_trs_condition.empty:
+        constitutive_alltrs_tuples = set(Const_overall_trs_condition[['start', 'end']].itertuples(index=False, name=None))
+    else:
+        constitutive_alltrs_tuples=set()
 
     #Processing skipped and constitutive separately.
     first_exon_rows = group[group['splicing_event'] == 'first_exon']
     first_exon_tuples = first_exon_rows[['start','end','transcript_id']].apply(tuple, axis=1)
+    
+
     # Grouping transcripts by first exons.
     tr_subgroup_df = first_exon_rows.groupby(['start','end'])['transcript_id'].apply(list).reset_index()
     tr_subgroup = tr_subgroup_df['transcript_id'].to_dict()
@@ -114,6 +146,7 @@ def exon_cat(group):
     constitutive_tuples = set(tuple_ for tuples_list in constitutive_true_dic.values() for tuple_ in tuples_list)
 
     #I am accounting for first and last exons here, they need to be excluded when I am trying to classify exons of other transcripts in which the first exon of trs1 might be a second or third exon.
+    tr_num = filtered_group['transcript_id'].nunique()
     ex_1start_more_ends = filtered_group.groupby(['start']).filter(lambda g: g['end'].nunique() > 1)
     ex_1start_more_ends_count = ex_1start_more_ends.groupby(['start'])['transcript_id'].transform('count')
     composite_condition1 = ex_1start_more_ends[(ex_1start_more_ends_count < tr_num)]
@@ -132,8 +165,10 @@ def exon_cat(group):
             group.loc[group['end'].isin(composite_condition2['end']), 'splicing_event'] ='composite_alt_3_skipped'
         group.loc[group.apply(lambda row: (row['start'], row['end']) in skipped_tuples and pd.isna(row['splicing_event']), axis=1),
         'splicing_event'] = 'skipped_exon'
-        group.loc[group.apply(lambda row: (row['start'], row['end']) in constitutive_tuples, axis=1),
+        group.loc[group.apply(lambda row: ((row['start'], row['end']) in constitutive_tuples) and ((row['start'], row['end']) in constitutive_alltrs_tuples), axis=1),
         'splicing_event'] = 'constitutive'
+        group.loc[group.apply(lambda row: ((row['start'], row['end']) in constitutive_tuples) and not ((row['start'], row['end']) in constitutive_alltrs_tuples), axis=1),
+        'splicing_event'] = 'constitutive_totranscript'
 
     elif '-' in group['strand'].unique():
         group.loc[group['start'].isin(ex_1start_more_ends['start']), 'splicing_event'] ='alt_3_prime(-)'
@@ -144,9 +179,10 @@ def exon_cat(group):
             group.loc[group['end'].isin(composite_condition2['end']), 'splicing_event'] ='composite_alt_5_skipped(-)'
         group.loc[group.apply(lambda row: (row['start'], row['end']) in skipped_tuples and pd.isna(row['splicing_event']), axis=1),
         'splicing_event'] = 'skipped_exon(-)'
-        group.loc[group.apply(lambda row: (row['start'], row['end']) in constitutive_tuples, axis=1),
+        group.loc[group.apply(lambda row: ((row['start'], row['end']) in constitutive_tuples) and ((row['start'], row['end']) in constitutive_alltrs_tuples), axis=1),
         'splicing_event'] = 'constitutive(-)'
-        
+        group.loc[group.apply(lambda row: ((row['start'], row['end']) in constitutive_tuples) and not ((row['start'], row['end']) in constitutive_alltrs_tuples), axis=1),
+        'splicing_event'] = 'constitutive_totranscript(-)'
     # This snippet is repeated so that some exons, which get labelled wrongly as any other events, even though they show those characteristics, to keep it simple, this will override and will always label such exons as first exons over any other thing.
     if '+' in group['strand'].unique():
         group.loc[smallest_exon_rows.index, 'splicing_event'] = 'first_exon'
@@ -156,7 +192,15 @@ def exon_cat(group):
         group.loc[smallest_exon_rows.index, 'splicing_event'] = 'last_exon'
         group.loc[greatest_exon_rows.index, 'splicing_event'] = 'first_exon'
 
-    return group
+    gene_model = gene_model.merge(
+        group[['start', 'end', 'splicing_event']],
+        on=['start', 'end'],
+        how='left'
+    )
+    gene_model['splicing_event'] = gene_model['splicing_event_y'].combine_first(gene_model['splicing_event_x'])
+    gene_model.drop(['splicing_event_x', 'splicing_event_y'], axis=1, inplace=True)
+
+    return gene_model
 
 def intron_filter(group):
     exon_condition = group[
@@ -240,7 +284,7 @@ def intron_filter(group):
             group.at[index, 'correct_coords'] = 'True'
         else:
             group.at[index, 'correct_coords'] = None
-            
+
     for index, row in group.iterrows():
         type = row['group']
         if type == 'intron' and pd.isna(row['correct_coords']):
@@ -253,51 +297,55 @@ def intron_cat(group):
     introns = group[group['group']=='intron']
     first_int = group[group['splicing_event'].str.contains('first', na = False)][['start','end','strand','transcript_id']]
     last_int = group[group['splicing_event'].str.contains('last', na = False)][['start','end','strand','transcript_id']]
-    
+
     for index, row in introns.iterrows():
         if  (row['strand']=='+'):
             if (row['start'] in first_int['end'].values + 1) and (row['transcript_id'] in first_int['transcript_id'].values):
-                group.at[index, 'splicing_event'] = 'first_intron'
+                current_val = group.at[index, 'splicing_event']
+                group.at[index, 'splicing_event'] = f"{current_val}, first_intron" if pd.notna(current_val) else "first_intron"
             elif (row['end'] in last_int['start'].values - 1) and (row['transcript_id'] in last_int['transcript_id'].values):
-                group.at[index, 'splicing_event'] = 'last_intron'
+                current_val = group.at[index, 'splicing_event']
+                group.at[index, 'splicing_event'] = f"{current_val}, last_intron" if pd.notna(current_val) else "last_intron"
         elif  (row['strand']=='-'):         
             if (row['end'] in first_int['start'].values - 1) and (row['transcript_id'] in first_int['transcript_id'].values):
-                group.at[index, 'splicing_event'] = 'first_intron(-)'       
+                current_val = group.at[index, 'splicing_event']
+                group.at[index, 'splicing_event'] = f"{current_val}, first_intron(-)" if pd.notna(current_val) else "first_intron(-)"
             elif (row['start'] in last_int['end'].values + 1) and (row['transcript_id'] in last_int['transcript_id'].values):
-                group.at[index, 'splicing_event'] = 'last_intron(-)'
+                current_val = group.at[index, 'splicing_event']
+                group.at[index, 'splicing_event'] = f"{current_val}, last_intron(-)" if pd.notna(current_val) else "last_intron(-)"
 
-    constex = group[group['splicing_event'].str.contains('constitutive',na=False)][['start','end','strand']]
-    
+    constex_1 = group[group['splicing_event'].str.contains('constitutive',na=False)][['start','end','strand']]
+
     # Labels introns flanking constitutive exons on both strands
+    for index, row in introns.iterrows():
+        if (row['start'] in constex_1['end'].values + 1):
+            if  (row['strand']=='+'):
+                group.at[index, 'splicing_event'] = 'constitutive_downstream'    
+            elif (row['strand']=='-'):                                                                          
+                group.at[index, 'splicing_event'] = 'constitutive_upstream(-)'               
+                                                                                                                 
+        elif (row['end'] in constex_1['start'].values - 1):
+            if  (row['strand']=='+'):
+                group.at[index, 'splicing_event'] = 'constitutive_upstream'    
+            elif (row['strand']=='-'):                                                               
+                group.at[index, 'splicing_event'] = 'constitutive_downstream(-)'
+
+    constex = group[group['splicing_event'].str.contains('constitutive_totranscript',na=False)][['start','end','strand']]
+
+    # Labels introns flanking constitutive exons grouped by first exon coords, on both strands
     for index, row in introns.iterrows():
         if (row['start'] in constex['end'].values + 1):
             if  (row['strand']=='+'):
-                current_val = group.at[index, 'splicing_event']
-                if pd.notna(current_val):
-                    group.at[index, 'splicing_event'] = current_val + ', constitutive_downstream'
-                else:
-                    group.at[index, 'splicing_event'] = 'constitutive_downstream'
-            elif (row['strand']=='-'):
-                current_val = group.at[index, 'splicing_event']
-                if pd.notna(current_val):
-                    group.at[index, 'splicing_event'] = current_val + ', constitutive_upstream(-)'
-                else:
-                    group.at[index, 'splicing_event'] = 'constitutive_upstream(-)'
-
+                group.at[index, 'splicing_event'] = 'constitutive_totranscript_downstream'    
+            elif (row['strand']=='-'):                                                                          
+                group.at[index, 'splicing_event'] = 'constitutive_totranscript_upstream(-)'               
+                                                                                                                 
         elif (row['end'] in constex['start'].values - 1):
             if  (row['strand']=='+'):
-                current_val = group.at[index, 'splicing_event']
-                if pd.notna(current_val):
-                    group.at[index, 'splicing_event'] = current_val + ', constitutive_upstream'
-                else:
-                    group.at[index, 'splicing_event'] = 'constitutive_upstream'
-            elif (row['strand']=='-'):
-                current_val = group.at[index, 'splicing_event']
-                if pd.notna(current_val):
-                    group.at[index, 'splicing_event'] = current_val + ', constitutive_downstream(-)'
-                else:
-                    group.at[index, 'splicing_event'] = 'constitutive_downstream(-)'
-                
+                group.at[index, 'splicing_event'] = 'constitutive_totranscript_upstream'    
+            elif (row['strand']=='-'):                                                               
+                group.at[index, 'splicing_event'] = 'constitutive_totranscript_downstream(-)'
+
     # Labels introns flanking skipped exons on both strands   
     skipex = group[group['splicing_event'].str.contains('skipped_exon',na=False)][['start','end','strand']]
     for index, row in introns.iterrows():
@@ -494,8 +542,7 @@ def intron_cat(group):
                     group.at[index, 'splicing_event'] = current_val + ', composite_alt_3_downstream(-)'
                 else:
                     group.at[index, 'splicing_event'] = 'composite_alt_3_downstream(-)'
-                    
-                               
+                   
     return group
         
 
@@ -503,7 +550,7 @@ keywords = []
 
 import pandas as pd
 
-r2 = pd.read_csv(gtf_file, sep='\t', names=['Chr', 'source', 'group', 'start', 'end', '_', 'strand', '-', 'info'])
+r2 = pd.read_csv(gff_file, sep='\t', names=['Chr', 'source', 'group', 'start', 'end', '_', 'strand', '-', 'info'])
 r2.dropna(axis=0, inplace=True)
 r2_Ex_Int = r2[(r2['group'] == 'exon') | (r2['group'] == 'intron')].copy()
 
@@ -536,14 +583,13 @@ r2_Ex_Int = r2_Ex_Int.sort_values(by=['sort_order'])
 r2_Ex_Int = r2_Ex_Int.drop(columns=['sort_order'])
 
 r2_Ex_Int['order_of_appearance'] = r2_Ex_Int.groupby(['group', 'transcript_id']).cumcount() + 1
-r2_Exons = r2_Ex_Int[r2_Ex_Int['group'] == 'exon'].copy()
 
+r2_Ex_Int_1 = r2_Ex_Int.groupby(['gene_id']).apply(lambda x: retained_introns(x))
+r2_Ex_Int_1.reset_index(drop=True, inplace=True)
+r2_Exons_annot_composite = r2_Ex_Int_1.groupby(['gene_id']).apply(lambda x: exon_cat(x))
+r2_Exons_annot_composite.reset_index(drop=True, inplace=True)
 
-r2_Exons = r2_Exons.groupby(['gene_id']).apply(lambda x: exon_cat(x))
-r2_Exons_annot_composite = r2_Exons.reset_index(drop=True)
-df_merged = pd.merge(r2_Ex_Int, r2_Exons_annot_composite, how='left')
-
-
+retained_introns = len(r2_Exons_annot_composite[r2_Exons_annot_composite['splicing_event'] == 'retained intron'])
 constitutive = len(r2_Exons_annot_composite[r2_Exons_annot_composite['splicing_event'] == 'constitutive']) + len(r2_Exons_annot_composite[r2_Exons_annot_composite['splicing_event'] == 'constitutive(-)'])
 skipped = len(r2_Exons_annot_composite[r2_Exons_annot_composite['splicing_event'] == 'skipped_exon']) + len(r2_Exons_annot_composite[r2_Exons_annot_composite['splicing_event'] == 'skipped_exon(-)'])
 alt_5 = len(r2_Exons_annot_composite[r2_Exons_annot_composite['splicing_event'] == 'alt_5_prime']) + len(r2_Exons_annot_composite[r2_Exons_annot_composite['splicing_event'] == 'alt_5_prime(-)'])
@@ -555,8 +601,8 @@ print(f'Total number of skipped exons: {skipped}')
 print(f'Total number of alternative 5\'ss exons: {alt_5}')
 print(f'Total number of alternative 3\'ss exons: {alt_3}')
 print(f'Total number of composite alternative 5\'ss or alternative 3\'ss containing and skipped exons: {composite}')
-
-df_final = df_merged.groupby(['gene_id']).apply(lambda x: intron_filter(x))
+print(f'Total number of retained introns: {retained_introns}')
+df_final = r2_Exons_annot_composite.groupby(['gene_id']).apply(lambda x: intron_filter(x))
 df_final.reset_index(drop=True, inplace=True)
 all_annot_df = df_final.groupby(['gene_id']).apply(lambda x: intron_cat(x))
 
@@ -620,7 +666,7 @@ median_size = all_annot_Introns['size'].median()
 def round_to_nearest_multiple_of_10(number):
     return round(number / 10) * 10
 
-if median == None:
+if median == 0:
     median = round_to_nearest_multiple_of_10(median_size)
 
 print('The introns bigger than the median size are being resized to - %d bp. \n' % median)
@@ -675,7 +721,7 @@ if coordinate_type == 'relative':
     all_coordinates = pd.concat([all_intron_coordinates, all_exon_coordinates], ignore_index=True)
     all_coordinates.sort_values(by=['Parent', 'start'], ascending=[True, True], inplace=True)
     
-    all_coordinates.to_csv('./Exon_IntronFragment_coordinates.tsv', sep='\t', index=False)
+    all_coordinates.to_csv('./CelsWS15_Exon_IntronFragment_coordinates.tsv', sep='\t', index=False)
     scaled_df.to_csv(exon_intron_annot_file, sep='\t')
 
 elif coordinate_type == 'absolute':
