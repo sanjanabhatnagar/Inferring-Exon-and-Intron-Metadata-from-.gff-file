@@ -1,4 +1,4 @@
-# Understanding RNA grammar : Annotating non-coding regions (introns) in genome annotation files
+# Inferring intron annotations from genome annotation files based on the exons they flank
 
 ## GTF_ExInt_Annotator.py for Processing gff -
 
