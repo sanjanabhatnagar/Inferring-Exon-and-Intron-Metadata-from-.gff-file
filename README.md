@@ -2,7 +2,7 @@
 
 ## gff_exon-intron_annotations.py for processing .gff -
 
-1. DOWNLOADING GTF/GFF file -
+1. DOWNLOADING .gff file -
 The .gff fle can be downloaded from RefSeq or other specific databases.
 These usually contain the coordinates of a gene and all other entities within it such as exons, UTRs, CDS etc.
 These files usually lack introns hence, intron coordinates need to be inferred from the exon coordinates.
