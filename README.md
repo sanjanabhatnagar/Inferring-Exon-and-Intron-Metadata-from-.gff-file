@@ -48,19 +48,22 @@ this intron (from donor 5'splice site end) and ending 100 bp of this intron (fro
 
 [absolute/relative] - This is the type of coordinates for the output intron coordinates file. In all cases, the output will be 'absolute.' The 'relative' option is used only when the output file requires gene coordinates scaled from 0 to the full length of the gene.
 
-3.1. RESULTING FILES -
+##  gff_exon-intron_annotations.py Output files - 
 
-1. metadata_Introns_annotated.tsv -> This file only contains actual intron-coordinates and inferred metadata.Depending on the options chosen [absolute/relative] [size], columns will be added to the file.
+# 1. metadata_Introns_annotated.tsv
+This file only contains actual intron-coordinates and inferred metadata.Depending on the options chosen [absolute/relative] [size], columns will be added to the file.
    1.a. If [absolute] is chosen - start and end coordinates will be present in start and end columns
    1.b. If [relative] is chosen - start and end coordinates will be present in absolute start and absolute_end columns while the relative coordinates are 	calculated assuming each gene starts at 0.
    1.c. [size] - Will be 'chosen size - median or supplied size' and less bp
    1.d. IDs of intron fragments with a certain size will also be present in columns
    
-3. metadata_Introns_Exons_annotated.tsv -> This file contains both introns and exons related metadata.
+# 2. metadata_Introns_Exons_annotated.tsv 
+This file contains both introns and exons related metadata.
 
-5. intron_coordinate.tsv -> This file contains correct inferred coordinates of introns. This file can be further converted to bed file using. crdnts_to_bed.R 
+# 3. intron_coordinate.tsv 
+This file contains correct inferred coordinates of introns. This file can be further converted to bed file using. crdnts_to_bed.R 
 
-GENERATING BED FILES FROM COORDINATES FILE -
+## Generating .bed format files from .gff output file - _coordinate.tsv
 
 The R script - crdnts_to_bed.R takes the coordinates.tsv file generated previously as input.
 It then outputs two bed files. One is for + strand sequences and another is for - strand sequences.
