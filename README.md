@@ -2,17 +2,17 @@
 
 ## gff_exon-intron_annotations.py for processing .gff -
 
-1. DOWNLOADING .gff file -
+### 1. DOWNLOADING .gff file -
 The .gff fle can be downloaded from RefSeq or other specific databases.
 These usually contain the coordinates of a gene and all other entities within it such as exons, UTRs, CDS etc.
 These files usually lack introns hence, intron coordinates need to be inferred from the exon coordinates.
 
-2. USING AGAT software TO INFER INTRON COORDINATES-
+### 2. USING AGAT software TO INFER INTRON COORDINATES-
 It can be downloaded and installed from this source -  https://github.com/NBISweden/AGAT
 This can be further added to the path variable and following script can be run
 agat_sp_add_introns.pl --gff [_.gff] -o [_updated.gff]
 
-3. CLASSIFYING INTRONS -
+### 3. CLASSIFYING INTRONS -
 The script gff_exon-intron_annotations.py specifically annotates all the exons and further infers intron coordinates and annotations based on the exons they flank. The usage is -
 
 python gff_exon-intron_annotations.py [_updated.gff] [keywords.txt] [metadata_Introns_annotated.tsv] [metadata_Introns_Exons_annotated.tsv][intron_coordinates.tsv] [absolute/relative] [size]
@@ -48,6 +48,7 @@ this intron (from donor 5'splice site end) and ending 100 bp of this intron (fro
 
 [absolute/relative] - This is the type of coordinates for the output intron coordinates file. In all cases, the output will be 'absolute.' The 'relative' option is used only when the output file requires gene coordinates scaled from 0 to the full length of the gene.
 
+
 ##  gff_exon-intron_annotations.py output files - 
 
 ### 1. metadata_Introns_annotated.tsv
@@ -63,7 +64,8 @@ This file contains both introns and exons related metadata.
 ### 3. intron_coordinate.tsv 
 This file contains correct inferred coordinates of introns. This file can be further converted to bed file using. crdnts_to_bed.R 
 
-### Generating .bed format files from .gff output file - _coordinate.tsv
+
+## Generating .bed format files from .gff output file - _coordinate.tsv
 
 The R script - crdnts_to_bed.R takes the coordinates.tsv file generated previously as input.
 It then outputs two bed files. One is for + strand sequences and another is for - strand sequences.
