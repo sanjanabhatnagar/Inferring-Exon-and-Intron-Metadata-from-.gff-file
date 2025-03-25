@@ -94,3 +94,8 @@ This pipeline extracts exon and intron annotations from .gff files by inferring 
 
 For any issues, refer to AGAT documentation or modify the scripts accordingly.
 
+## References 
+
+Dainat J. AGAT: Another Gff Analysis Toolkit to handle annotations in any GTF/GFF format.  
+(Version v0.7.0). Zenodo. https://www.doi.org/10.5281/zenodo.3552717
+
