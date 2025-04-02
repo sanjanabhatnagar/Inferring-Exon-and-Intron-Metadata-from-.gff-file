@@ -4,7 +4,7 @@
 This pipeline extracts exon and intron metadata from .gff files using only coordinate information. It classifies exons into the following splicing categories:
 
 - **Constitutively spliced exons** (always included in mRNA)
-- **Alternatively spliced exons** (e.g., skipped exons)
+- **Skipped exons** (e.g., casette exons and mutually exclusive exons)
 - **Alternative 5’ splice site (5’ss) exons** (exons with two donor sites)
 - **Alternative 3’ splice site (3’ss) exons** (exons with two acceptor sites)
 - **Retained introns** (introns incorporated into mRNA)
