@@ -9,6 +9,7 @@ version: 1.0.0
 repository-code: https://github.com/sanjanabhatnagar/Inferring-Exon-and-Intron-Metadata-from-.gff-file
 doi: 10.5281/zenodo.15757210
 type: software
+license: Apache-2.0
 keywords:
   - intron annotation
   - exon metadata
