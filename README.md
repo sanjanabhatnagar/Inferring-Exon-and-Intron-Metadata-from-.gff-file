@@ -90,7 +90,7 @@ NC_026501.1     4861    4961    NC_026501.1_+_4861_4961
 ---
 
 ## Summary
-This pipeline extracts exon and intron annotations from .gff files by inferring intron positions, filtering actual introns, and generating BED files for downstream analysis. It supports metadata extraction, intron classification, and size-based intron fragmentation.
+This pipeline extracts exon and intron annotations from .gff files by inferring intron positions, filtering out conditional introns (only preserving introns that don't overlap with any exons in other transcripts), and generating BED files for downstream analysis. It supports metadata extraction, intron classification, and size-based intron fragmentation.
 
 For any issues, refer to AGAT documentation or modify the scripts accordingly.
 
