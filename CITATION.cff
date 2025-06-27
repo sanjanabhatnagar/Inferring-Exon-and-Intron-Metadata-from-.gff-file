@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this pipeline, please cite it using the metadata below."
+title: "Inferring Exon and Intron Metadata from .gff file"
+authors:
+  - family-names: Bhatnagar
+    given-names: Sanjana
+date-released: 2025-06-27
+version: 1.0.0
+repository-code: https://github.com/sanjanabhatnagar/Inferring-Exon-and-Intron-Metadata-from-.gff-file
+doi: 10.5281/zenodo.15757210
+type: software
+keywords:
+  - intron annotation
+  - exon metadata
+  - gff parser
+  - bioinformatics pipeline
