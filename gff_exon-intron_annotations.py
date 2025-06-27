@@ -717,19 +717,19 @@ all_intron_coordinates.to_csv(intron_cords_file, sep='\t')
 
 
 if coordinate_type == 'relative':
-    all_exon_coordinates = scaled_df[scaled_df['group']=='exon'][['Parent','Chr','group','start', 'end','strand', 'ID']]
+    all_exon_coordinates = scaled_df[scaled_df['group']=='exon'][['gene_id','Parent','Chr','group','start', 'end','strand', 'ID']]
     all_coordinates = pd.concat([all_intron_coordinates, all_exon_coordinates], ignore_index=True)
-    all_coordinates.sort_values(by=['Parent', 'start'], ascending=[True, True], inplace=True)
+    all_coordinates.sort_values(by=['gene_id', 'start'], ascending=[True, True], inplace=True)
     
-    all_coordinates.to_csv('./CelsWS15_Exon_IntronFragment_coordinates.tsv', sep='\t', index=False)
+    all_coordinates.to_csv('./CelsWS15_Exon_IntronFragment_coordinates_April2025.tsv', sep='\t', index=False)
     scaled_df.to_csv(exon_intron_annot_file, sep='\t')
 
 elif coordinate_type == 'absolute':
-    all_exon_coordinates = all_annot_df[all_annot_df['group']=='exon'][['Parent','Chr','group','start', 'end','strand', 'ID']]
+    all_exon_coordinates = all_annot_df[all_annot_df['group']=='exon'][['gene_id','Parent','Chr','group','start', 'end','strand', 'ID']]
     all_coordinates = pd.concat([all_intron_coordinates, all_exon_coordinates], ignore_index=True)
-    all_coordinates.sort_values(by=['Parent', 'start'], ascending=[True, True], inplace=True)
+    all_coordinates.sort_values(by=['gene_id', 'start'], ascending=[True, True], inplace=True)
 
-    all_coordinates.to_csv('./Exon_IntronFragment_coordinates.tsv', sep='\t', index=False)
+    all_coordinates.to_csv('./Exon_IntronFragment_April2025_coordinates.tsv', sep='\t', index=False)
     all_annot_df.to_csv(exon_intron_annot_file, sep='\t')
 # The end - this will give an annotated intron coordinates file which can be further analyzed in excel.###
 
