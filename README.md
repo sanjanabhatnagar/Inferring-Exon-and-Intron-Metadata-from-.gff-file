@@ -98,7 +98,7 @@ For any issues, refer to AGAT documentation or modify the scripts accordingly.
 
 If you use this pipeline, please cite:
 
-Bhatnagar, S. (2025). sanjanabhatnagar/Inferring-Exon-and-Intron-Metadata-from-.gff-file: Initial release (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.15757210
+Bhatnagar, S., & Calarco, J. (2025). Inferring Exon and Intron Metadata from .gff file (v1.0.1). Zenodo. https://doi.org/10.5281/zenodo.15757714
 
 ## References 
 
